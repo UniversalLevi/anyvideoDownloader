@@ -1,0 +1,16 @@
+# Dependencies and env
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Large binaries / downloads
+*.zip
+ffmpeg-bin/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

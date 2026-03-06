@@ -1,0 +1,9 @@
+# Don't copy these into the Docker image
+.git
+*.zip
+*.md
+__pycache__
+*.pyc
+.venv
+venv
+env
