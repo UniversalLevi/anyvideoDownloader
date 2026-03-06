@@ -61,7 +61,7 @@ DARK_HTML = '''
             text-align: center;
             color: #00bfae;
         }
-        input[type="text"], textarea {
+        input[type="text"] {
             width: 100%;
             padding: 0.75rem;
             border-radius: 0.5rem;
@@ -72,8 +72,6 @@ DARK_HTML = '''
             color: #f1f1f1;
             box-sizing: border-box;
         }
-        textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size: 0.85rem; }
-        label.optional { font-size: 0.9rem; color: #888; display: block; margin-bottom: 0.35rem; }
         button {
             width: 100%;
             padding: 0.75rem;
@@ -116,41 +114,13 @@ DARK_HTML = '''
             text-decoration: underline;
             word-break: break-all;
         }
-        .help-box {
-            margin-top: 0.5rem;
-            padding: 0.75rem;
-            font-size: 0.85rem;
-            background: #1a1d1e;
-            border-radius: 0.5rem;
-            color: #b0b0b0;
-            border-left: 3px solid #00bfae;
-        }
-        .help-box strong { color: #e0e0e0; }
-        .help-box ol { margin: 0.5rem 0 0 1rem; padding: 0; }
-        .help-box li { margin-bottom: 0.25rem; }
-        .help-box a { color: #00bfae; }
-        .help-box code { background: #25282a; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>anyvideoDownloader</h1>
         <form id="downloadForm">
-            <input type="text" id="url" name="url" placeholder="Paste video URL here..." required />
-            <label class="optional" for="cookies">Cookies (optional – for Instagram / private content)</label>
-            <textarea id="cookies" name="cookies" placeholder="Paste a cookies.txt file here (see help below)"></textarea>
-            <div class="help-box">
-                <strong>What is &quot;cookies.txt&quot; / Netscape format?</strong><br>
-                It’s a small text file from your browser with your login cookies. <strong>Not</strong> a single token or password – it must be the full exported file.<br>
-                <strong>How to get it:</strong>
-                <ol>
-                    <li>Install a browser extension: <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Chrome</a> or <a href="https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/" target="_blank" rel="noopener">Firefox</a>.</li>
-                    <li>Log in to Instagram (or the site you need) in that browser.</li>
-                    <li>Open instagram.com, then click the extension and export as &quot;Netscape&quot; or &quot;cookies.txt&quot;.</li>
-                    <li>Open the downloaded .txt file, copy <strong>all</strong> of it (many lines), and paste into the Cookies box above.</li>
-                </ol>
-                The file starts with a line like <code># Netscape HTTP Cookie File</code> and has rows with domain, path, and cookie names/values.
-            </div>
+            <input type="text" id="url" name="url" placeholder="Enter video URL..." required />
             <button type="submit">Download</button>
         </form>
         <div id="spinner" class="spinner" style="display:none;"></div>
@@ -164,15 +134,12 @@ DARK_HTML = '''
             e.preventDefault();
             resultDiv.style.display = 'none';
             spinner.style.display = 'block';
-            const url = document.getElementById('url').value;
-            const cookies = document.getElementById('cookies').value.trim();
-            const body = { url };
-            if (cookies) body.cookies = cookies;
+            const url = document.getElementById('url').value.trim();
             try {
                 const res = await fetch('/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ url })
                 });
                 const contentType = res.headers.get('Content-Type') || '';
                 if (contentType.includes('application/json')) {
@@ -226,18 +193,15 @@ def download():
     if not isinstance(url, str) or not url.strip():
         return jsonify({'error': 'Invalid URL'}), 400
     url = url.strip()
-    # Cookies: from request body, or fall back to server default (e.g. COOKIES_TXT on Render)
-    cookies_raw = (data.get('cookies') or '').strip() or DEFAULT_COOKIES
     cookie_path = None
-    if cookies_raw:
+    if DEFAULT_COOKIES:
         try:
             fd, cookie_path = tempfile.mkstemp(suffix='.txt', prefix='cookies')
             with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                f.write(cookies_raw)
-            logging.info("Using cookies for this request")
+                f.write(DEFAULT_COOKIES)
+            logging.info("Using server cookies for this request")
         except Exception as e:
             logging.warning(f"Could not write cookie file: {e}")
-            cookie_path = None
     logging.info(f"Received download request for URL: {url}")
     try:
         opts = get_ydl_opts(cookie_path)
