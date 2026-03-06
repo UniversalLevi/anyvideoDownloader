@@ -101,16 +101,30 @@ Use the **Cookies** textarea on the page. Paste your cookies in **Netscape forma
 - Install a browser extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) (Chrome) or [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/) (Firefox).
 - Log in to Instagram in that browser, go to instagram.com, then use the extension to export “Netscape” or “cookies.txt” and paste the content into the app.
 
-### Option B: Set cookies once on the server (recommended for Instagram)
-So the app always uses your Instagram session without pasting every time:
+### Option B: Set cookies once on the server (so anyone can use the deployed app)
+Set your Instagram cookies as an **environment variable** on Render. Then the app will use them for every request and **anyone** visiting your deployed URL can download Instagram Reels without pasting cookies.
 
-1. Export your Instagram cookies in Netscape format (same as above).
-2. On **Render**: your service → **Environment** → **Add Environment Variable**.
+**Steps:**
+
+1. **Export cookies** from the browser (extension → export as Netscape / cookies.txt). You should have a `.txt` file that starts with:
+   ```
+   # Netscape HTTP Cookie File
+   # https://curl.haxx.se/rfc/cookie_spec.html
+   ...
+   .instagram.com	TRUE	/	...
+   ```
+
+2. **On Render:** open your **Web Service** → **Environment** (left sidebar).
+
+3. **Add Environment Variable:**
    - **Key:** `COOKIES_TXT`
-   - **Value:** paste the **entire** contents of your cookies.txt (multiple lines). Render allows multiline values.
-3. Save. Render will redeploy. After that, Instagram (and other sites that need cookies) will use this cookie for every request.
+   - **Value:** open your cookies.txt in Notepad, select **all** (Ctrl+A), copy, and paste into the Value field. Paste the **whole file** (first line `# Netscape HTTP Cookie File` through the last cookie line). Render accepts multiline values.
 
-**Security:** Treat `COOKIES_TXT` like a password. Anyone with access to your Render env can use the session. Don’t share the repo or env; use a dedicated Instagram account if you prefer.
+4. Click **Save Changes**. Render will redeploy. When it’s done, your app will use these cookies for all downloads, so Instagram (and other sites that need login) will work for everyone who uses your link.
+
+**Important:** Do **not** put cookies in your code or in a file in the repo. Only set them in Render’s (or your host’s) **Environment** so they stay private and are not committed to Git.
+
+**Security:** Treat `COOKIES_TXT` like a password. Use a dedicated Instagram account for this if you prefer; don’t share the Render env with others.
 
 ---
 
