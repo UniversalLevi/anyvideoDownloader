@@ -12,14 +12,21 @@ logging.basicConfig(level=logging.INFO)
 # Download directory (use temp dir so we can send file and clean up; works when deployed)
 DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', tempfile.gettempdir())
 
-def get_ydl_opts():
-    return {
+# Optional: set COOKIES_TXT in Render (or .env) with your cookies.txt content for Instagram/private content
+# So the app can download without you pasting cookies every time.
+DEFAULT_COOKIES = os.environ.get('COOKIES_TXT', '').strip()
+
+def get_ydl_opts(cookiefile_path=None):
+    opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
     }
+    if cookiefile_path and os.path.isfile(cookiefile_path):
+        opts['cookiefile'] = cookiefile_path
+    return opts
 
 DARK_HTML = '''
 <!DOCTYPE html>
@@ -54,7 +61,7 @@ DARK_HTML = '''
             text-align: center;
             color: #00bfae;
         }
-        input[type="text"] {
+        input[type="text"], textarea {
             width: 100%;
             padding: 0.75rem;
             border-radius: 0.5rem;
@@ -63,7 +70,10 @@ DARK_HTML = '''
             font-size: 1rem;
             background: #181a1b;
             color: #f1f1f1;
+            box-sizing: border-box;
         }
+        textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size: 0.85rem; }
+        label.optional { font-size: 0.9rem; color: #888; display: block; margin-bottom: 0.35rem; }
         button {
             width: 100%;
             padding: 0.75rem;
@@ -113,6 +123,8 @@ DARK_HTML = '''
         <h1>anyvideoDownloader</h1>
         <form id="downloadForm">
             <input type="text" id="url" name="url" placeholder="Paste video URL here..." required />
+            <label class="optional" for="cookies">Cookies (optional – for Instagram / private content)</label>
+            <textarea id="cookies" name="cookies" placeholder="Paste cookies.txt content here, or set COOKIES_TXT on the server to use by default."></textarea>
             <button type="submit">Download</button>
         </form>
         <div id="spinner" class="spinner" style="display:none;"></div>
@@ -127,11 +139,14 @@ DARK_HTML = '''
             resultDiv.style.display = 'none';
             spinner.style.display = 'block';
             const url = document.getElementById('url').value;
+            const cookies = document.getElementById('cookies').value.trim();
+            const body = { url };
+            if (cookies) body.cookies = cookies;
             try {
                 const res = await fetch('/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify(body)
                 });
                 const contentType = res.headers.get('Content-Type') || '';
                 if (contentType.includes('application/json')) {
@@ -184,9 +199,22 @@ def download():
     url = data['url']
     if not isinstance(url, str) or not url.strip():
         return jsonify({'error': 'Invalid URL'}), 400
+    url = url.strip()
+    # Cookies: from request body, or fall back to server default (e.g. COOKIES_TXT on Render)
+    cookies_raw = (data.get('cookies') or '').strip() or DEFAULT_COOKIES
+    cookie_path = None
+    if cookies_raw:
+        try:
+            fd, cookie_path = tempfile.mkstemp(suffix='.txt', prefix='cookies')
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                f.write(cookies_raw)
+            logging.info("Using cookies for this request")
+        except Exception as e:
+            logging.warning(f"Could not write cookie file: {e}")
+            cookie_path = None
     logging.info(f"Received download request for URL: {url}")
     try:
-        opts = get_ydl_opts()
+        opts = get_ydl_opts(cookie_path)
         with YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
@@ -208,6 +236,12 @@ def download():
     except Exception as e:
         logging.error(f"Download failed: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if cookie_path and os.path.isfile(cookie_path):
+            try:
+                os.remove(cookie_path)
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

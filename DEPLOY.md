@@ -1,4 +1,4 @@
-# Deploy heheDownloader (standalone) so you can use it anytime
+# Deploy anyvideoDownloader so you can use it anytime
 
 This is a **single app**: one Flask server that downloads videos with yt-dlp and sends the file to your browser. Deploy it once and use it from anywhere.
 
@@ -33,7 +33,7 @@ These platforms work well and have a free tier:
 
    | Field | Value |
    |-------|--------|
-   | **Name** | `hehedownloader` (or any name) |
+   | **Name** | `anyvideoDownloader` (or any name) |
    | **Region** | Choose nearest to you |
    | **Root Directory** | Leave empty |
    | **Environment** | **Docker** |
@@ -43,7 +43,7 @@ These platforms work well and have a free tier:
    Click **Create Web Service**. Render will build the Docker image (installs Python, ffmpeg, yt-dlp, Flask) and start the app.
 
 5. **Use it**  
-   When the build finishes, you’ll get a URL like `https://hehedownloader.onrender.com`. Open it, paste a video URL, and download. The file is sent to your browser.
+   When the build finishes, you’ll get a URL like `https://anyvideodownloader.onrender.com`. Open it, paste a video URL, and download. The file is sent to your browser.
 
 **Note (free tier):** The service may spin down after ~15 min of no use. The first request after that can take 30–60 seconds to wake up.
 
@@ -92,7 +92,32 @@ Then open **http://localhost:10000**.
 
 ---
 
+## Instagram / private content (cookies)
+
+Instagram (and some other sites) often require login cookies when the request comes from a server (e.g. Render). You have two options:
+
+### Option A: Paste cookies each time
+Use the **Cookies** textarea on the page. Paste your cookies in **Netscape format** (a `cookies.txt` file). To get it:
+- Install a browser extension like [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) (Chrome) or [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/) (Firefox).
+- Log in to Instagram in that browser, go to instagram.com, then use the extension to export “Netscape” or “cookies.txt” and paste the content into the app.
+
+### Option B: Set cookies once on the server (recommended for Instagram)
+So the app always uses your Instagram session without pasting every time:
+
+1. Export your Instagram cookies in Netscape format (same as above).
+2. On **Render**: your service → **Environment** → **Add Environment Variable**.
+   - **Key:** `COOKIES_TXT`
+   - **Value:** paste the **entire** contents of your cookies.txt (multiple lines). Render allows multiline values.
+3. Save. Render will redeploy. After that, Instagram (and other sites that need cookies) will use this cookie for every request.
+
+**Security:** Treat `COOKIES_TXT` like a password. Anyone with access to your Render env can use the session. Don’t share the repo or env; use a dedicated Instagram account if you prefer.
+
+---
+
 ## Troubleshooting
+
+- **Instagram: “login required” or “rate-limit reached”**  
+  Add cookies: either paste them in the **Cookies** field on the page, or set the **COOKIES_TXT** env var on Render with your cookies.txt content (see “Instagram / private content” above).
 
 - **“Merge failed” or “ffmpeg not found”**  
   Deploy must use the **Dockerfile** so ffmpeg is installed. On Render, set Environment to **Docker**. On Railway, ensure the service builds from the Dockerfile.
